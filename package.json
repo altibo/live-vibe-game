@@ -1,0 +1,13 @@
+{
+  "name": "live-vibe-game",
+  "version": "1.0.0",
+  "description": "Live vibe coding game with hot-reload via WebSocket",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
