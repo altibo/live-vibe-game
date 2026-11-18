@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Vibe Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; color: white; font-family: sans-serif; }
+    #version { position: fixed; bottom: 10px; right: 10px; font-size: 14px; opacity: 0.7; }
+    #diff { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 16px; border-radius: 8px; font-size: 14px; display: none; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="version">v1</div>
+  <div id="diff"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
