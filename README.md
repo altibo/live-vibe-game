@@ -1,6 +1,6 @@
 # Live Vibe Game
 
-Browser-basiertes Spiel mit Hot-Reload über WebSocket, State-Persistenz, Live-Diff und optionalem GitHub-Versioning.
+Browser-basiertes 2D-Spiel mit Hot-Reload über WebSocket.
 
 ## Setup auf dem Zielrechner
 
@@ -11,43 +11,42 @@ npm install
 npm start
 ```
 
-Das Script gibt dir aus:
-- Game-URL: http://localhost:3000
-- WebSocket: ws://localhost:3000
+Dann Tunnel starten (z. B. `ngrok http 3000`) und die WebSocket-URL an die KI geben.
 
-## Für die KI freigeben (Tunnel)
+## Regeln für die KI
 
-```bash
-npx localtunnel --port 3000
-# oder
-ngrok http 3000
-```
-
-Den öffentlichen Link (z. B. `https://xyz.loca.lt`) an die KI geben.  
-Die KI muss dann per WebSocket (`wss://xyz.loca.lt`) Updates schicken.
-
-## Update-Format (was die KI schicken soll)
+### Update senden
+Schicke ein JSON über den WebSocket:
 
 ```json
 {
   "type": "update",
-  "description": "Schwerkraft reduziert, neue Plattform",
+  "description": "Kurze Beschreibung der Änderung",
   "files": {
-    "game.js": "// kompletter neuer Inhalt von game.js",
-    "index.html": "..."
+    "game.js": "kompletter neuer Inhalt der Datei"
   }
 }
 ```
 
-## Features
-- State wird in localStorage gespeichert und nach Reload wiederhergestellt
-- Live-Diff Overlay zeigt die Änderungsbeschreibung
-- Versionsnummer unten rechts
-- Automatische lokale Backups in `versions/`
-- Optional: Git commit + tag + push bei jedem Update (wenn Git-Credentials vorhanden)
+- Immer den **kompletten** Inhalt der Datei schicken
+- Nur Dateien schicken, die sich ändern
+- `server.js` wird ins Root geschrieben, alles andere in `public/`
 
-## GitHub-Versionierung
+### Wichtige Regeln
+- **Nur 2D** (Canvas). Kein Three.js / WebGL.
+- Vor dem Senden Syntax prüfen (`node --check`).
+- Nach erfolgreichem Update immer antworten mit:
+  - Neue Versionsnummer (kommt in der Server-Antwort als `ack`)
+  - Kurze Info, was geändert wurde
+- Auto-Reload ist aktiv. Die Seite lädt sich von selbst neu.
+- Version wird automatisch oben in die `game.js` als `const GAME_VERSION = X;` eingefügt.
+- Kein Git für Spiel-Dateien. Nur WebSocket.
 
-Das Spiel selbst liegt in diesem Repo unter `public/`.  
-Bei jedem Update macht der Server (wenn möglich) einen Commit + Tag `vXX` und pusht.  
-So hast du volle History und Rollback über Git.
+### Aktueller Stand
+- Zwei Quader (grün + rot)
+- Bewegen sich zufällig, prallen an Rändern ab
+- Ziehen farbige Spuren
+- Version wird unten rechts angezeigt
+
+### Beispiel-Antwort nach Update
+**v9** – Roter Quader ist jetzt größer und schneller.
