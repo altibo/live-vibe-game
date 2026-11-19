@@ -35,7 +35,6 @@ function backupCurrentFiles(version) {
 }
 
 function injectVersion(content, version) {
-  // Remove old version line if present, then prepend new one
   const cleaned = content.replace(/^const GAME_VERSION\s*=\s*\d+;?\s*\n?/m, '');
   return `const GAME_VERSION = ${version};\n` + cleaned;
 }
@@ -56,12 +55,20 @@ wss.on('connection', (ws) => {
         if (msg.files) {
           for (const [filename, content] of Object.entries(msg.files)) {
             let finalContent = content;
-            if (filename === 'game.js') {
-              finalContent = injectVersion(content, version);
+            let filePath;
+
+            if (filename === 'server.js') {
+              // server.js goes to project root, not public/
+              filePath = path.join(__dirname, 'server.js');
+            } else {
+              if (filename === 'game.js') {
+                finalContent = injectVersion(content, version);
+              }
+              filePath = path.join(PUBLIC_DIR, filename);
             }
-            const filePath = path.join(PUBLIC_DIR, filename);
+
             fs.writeFileSync(filePath, finalContent);
-            console.log('Wrote', filename);
+            console.log('Wrote', filename, '->', filePath);
           }
         }
 
