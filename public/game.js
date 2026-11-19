@@ -69,9 +69,29 @@ function handleGamepad() {
   }
 }
 
+function handleGamepad() {
+  const gamepads = navigator.getGamepads();
+  if (!gamepads) return;
+
+  for (const gamepad of gamepads) {
+    if (!gamepad) continue;
+
+    // Left stick: axes[0] = left/right, axes[1] = up/down
+    const deadzone = 0.15;
+    const sensitivity = 0.05;
+
+    const x = Math.abs(gamepad.axes[0]) > deadzone ? gamepad.axes[0] : 0;
+    const y = Math.abs(gamepad.axes[1]) > deadzone ? gamepad.axes[1] : 0;
+
+    cube.rotation.y += x * sensitivity;
+    cube.rotation.x += y * sensitivity;
+  }
+}
+
 function animate() {
   requestAnimationFrame(animate);
 
+  // Auto-rotation (can be overridden by gamepad)
   cube.rotation.x += 0.005;
   cube.rotation.y += 0.005;
 
@@ -84,11 +104,12 @@ function animate() {
 
 window.addEventListener("beforeunload", saveState);
 
-setInterval(function() {
-  fetch("/last-change.json")
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (typeof GAME_VERSION !== "undefined" && data.version > GAME_VERSION) {
+// Listen for reload signal
+setInterval(() => {
+  fetch('/last-change.json')
+    .then(r => r.json())
+    .then(data => {
+      if (data.version > version) {
         saveState();
         location.reload();
       }
