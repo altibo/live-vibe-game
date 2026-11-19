@@ -17,7 +17,7 @@ function init() {
   camera.position.z = 5;
 
   // Load last state if any
-  const saved = localStorage.getItem("gameState");
+  const saved = localStorage.getItem('gameState');
   if (saved) {
     try {
       const state = JSON.parse(saved);
@@ -26,16 +26,16 @@ function init() {
     } catch (e) {}
   }
 
-  document.getElementById("version").textContent = "v" + version;
+  document.getElementById('version').textContent = 'v' + version;
 
   // Show live diff if available
-  fetch("/last-change.json")
+  fetch('/last-change.json')
     .then(r => r.json())
     .then(data => {
-      const diffEl = document.getElementById("diff");
-      diffEl.textContent = \`v\${data.version}: \${data.description}\`;
-      diffEl.style.display = "block";
-      setTimeout(() => diffEl.style.display = "none", 5000);
+      const diffEl = document.getElementById('diff');
+      diffEl.textContent = 'v' + data.version + ': ' + data.description;
+      diffEl.style.display = 'block';
+      setTimeout(() => diffEl.style.display = 'none', 5000);
     })
     .catch(() => {});
 
@@ -47,7 +47,7 @@ function saveState() {
     version,
     cubeRotation: { x: cube.rotation.x, y: cube.rotation.y, z: cube.rotation.z }
   };
-  localStorage.setItem("gameState", JSON.stringify(state));
+  localStorage.setItem('gameState', JSON.stringify(state));
 }
 
 function handleGamepad() {
@@ -81,10 +81,10 @@ function animate() {
   if (Math.random() < 0.01) saveState();
 }
 
-window.addEventListener("beforeunload", saveState);
+window.addEventListener('beforeunload', saveState);
 
 setInterval(() => {
-  fetch("/last-change.json")
+  fetch('/last-change.json')
     .then(r => r.json())
     .then(data => {
       if (data.version > version) {
