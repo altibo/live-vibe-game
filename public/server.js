@@ -3,7 +3,6 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
@@ -25,18 +24,14 @@ function loadVersion() {
   try {
     if (fs.existsSync(VERSION_FILE)) {
       const data = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
-      if (data && typeof data.version === 'number') {
-        return data.version;
-      }
+      if (data && typeof data.version === 'number') return data.version;
     }
   } catch (e) {}
   try {
     const lastChange = path.join(PUBLIC_DIR, 'last-change.json');
     if (fs.existsSync(lastChange)) {
       const data = JSON.parse(fs.readFileSync(lastChange, 'utf8'));
-      if (data && typeof data.version === 'number') {
-        return data.version;
-      }
+      if (data && typeof data.version === 'number') return data.version;
     }
   } catch (e) {}
   return 1;
@@ -47,9 +42,7 @@ currentVersion = loadVersion();
 function saveVersion() {
   try {
     fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: currentVersion }, null, 2));
-  } catch (e) {
-    console.error('Could not save version:', e.message);
-  }
+  } catch (e) {}
 }
 
 function getNextVersion() {
@@ -62,19 +55,11 @@ function backupCurrentFiles(version) {
   try {
     const backupDir = path.join(VERSIONS_DIR, `v${version}`);
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    const files = ['game.js', 'index.html', 'style.css'];
-    files.forEach(f => {
+    ['game.js', 'index.html', 'style.css'].forEach(f => {
       const src = path.join(PUBLIC_DIR, f);
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, path.join(backupDir, f));
-      }
+      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(backupDir, f));
     });
   } catch (e) {}
-}
-
-function gitCommitAndTag(version, message) {
-  const cmd = `git add public/ && git commit -m "v${version}: ${message}" || true && git tag -f v${version} && git push && git push --tags -f || true`;
-  exec(cmd, () => {});
 }
 
 wss.on('connection', (ws) => {
@@ -105,8 +90,6 @@ wss.on('connection', (ws) => {
         };
         fs.writeFileSync(path.join(PUBLIC_DIR, 'last-change.json'), JSON.stringify(changeInfo, null, 2));
 
-        gitCommitAndTag(version, msg.description || 'AI update');
-
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: 'reload', version, description: changeInfo.description }));
@@ -126,10 +109,5 @@ server.listen(PORT, () => {
   console.log(`\n=== Live Vibe Game ===`);
   console.log(`Game:     http://localhost:${PORT}`);
   console.log(`WebSocket: ws://localhost:${PORT}`);
-  console.log(`\nFor AI access, expose with:`);
-  console.log(`  npx localtunnel --port ${PORT}`);
-  console.log(`  or ngrok http ${PORT}`);
-  console.log(`  or cloudflared tunnel --url http://localhost:${PORT}`);
-  console.log(`\nThen give the AI the public WebSocket URL (wss://... ).`);
-  console.log(`Current version: v${currentVersion}\n`);
+  console.log(`\nCurrent version: v${currentVersion}\n`);
 });
