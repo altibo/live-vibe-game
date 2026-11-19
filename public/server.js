@@ -14,27 +14,42 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const VERSIONS_DIR = path.join(__dirname, 'versions');
 const VERSION_FILE = path.join(__dirname, 'version.json');
 
-if (!fs.existsSync(VERSIONS_DIR)) fs.mkdirSync(VERSIONS_DIR);
+if (!fs.existsSync(VERSIONS_DIR)) fs.mkdirSync(VERSIONS_DIR, { recursive: true });
 
 app.use(express.static(PUBLIC_DIR));
 app.use(express.json({ limit: '10mb' }));
 
 let currentVersion = 1;
 
-if (fs.existsSync(VERSION_FILE)) {
+function loadVersion() {
   try {
-    const data = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
-    currentVersion = data.version || 1;
+    if (fs.existsSync(VERSION_FILE)) {
+      const data = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
+      if (data && typeof data.version === 'number') {
+        return data.version;
+      }
+    }
   } catch (e) {}
-} else if (fs.existsSync(path.join(PUBLIC_DIR, 'last-change.json'))) {
   try {
-    const data = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'last-change.json'), 'utf8'));
-    currentVersion = data.version || 1;
+    const lastChange = path.join(PUBLIC_DIR, 'last-change.json');
+    if (fs.existsSync(lastChange)) {
+      const data = JSON.parse(fs.readFileSync(lastChange, 'utf8'));
+      if (data && typeof data.version === 'number') {
+        return data.version;
+      }
+    }
   } catch (e) {}
+  return 1;
 }
 
+currentVersion = loadVersion();
+
 function saveVersion() {
-  fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: currentVersion }));
+  try {
+    fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: currentVersion }, null, 2));
+  } catch (e) {
+    console.error('Could not save version:', e.message);
+  }
 }
 
 function getNextVersion() {
@@ -44,19 +59,20 @@ function getNextVersion() {
 }
 
 function backupCurrentFiles(version) {
-  const backupDir = path.join(VERSIONS_DIR, `v${version}`);
-  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-  const files = ['game.js', 'index.html', 'style.css'];
-  files.forEach(f => {
-    const src = path.join(PUBLIC_DIR, f);
-    if (fs.existsSync(src)) {
-      fs.copyFileSync(src, path.join(backupDir, f));
-    }
-  });
+  try {
+    const backupDir = path.join(VERSIONS_DIR, `v${version}`);
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    const files = ['game.js', 'index.html', 'style.css'];
+    files.forEach(f => {
+      const src = path.join(PUBLIC_DIR, f);
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, path.join(backupDir, f));
+      }
+    });
+  } catch (e) {}
 }
 
 function gitCommitAndTag(version, message) {
-  // Force tag and ignore all errors
   const cmd = `git add public/ && git commit -m "v${version}: ${message}" || true && git tag -f v${version} && git push && git push --tags -f || true`;
   exec(cmd, () => {});
 }
@@ -87,7 +103,7 @@ wss.on('connection', (ws) => {
           description: msg.description || 'Updated by AI',
           timestamp: Date.now()
         };
-        fs.writeFileSync(path.join(PUBLIC_DIR, 'last-change.json'), JSON.stringify(changeInfo));
+        fs.writeFileSync(path.join(PUBLIC_DIR, 'last-change.json'), JSON.stringify(changeInfo, null, 2));
 
         gitCommitAndTag(version, msg.description || 'AI update');
 
