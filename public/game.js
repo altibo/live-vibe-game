@@ -50,10 +50,34 @@ function saveState() {
   localStorage.setItem('gameState', JSON.stringify(state));
 }
 
+function handleGamepad() {
+  const gamepads = navigator.getGamepads();
+  if (!gamepads) return;
+
+  for (const gamepad of gamepads) {
+    if (!gamepad) continue;
+
+    // Left stick: axes[0] = left/right, axes[1] = up/down
+    const deadzone = 0.15;
+    const sensitivity = 0.05;
+
+    const x = Math.abs(gamepad.axes[0]) > deadzone ? gamepad.axes[0] : 0;
+    const y = Math.abs(gamepad.axes[1]) > deadzone ? gamepad.axes[1] : 0;
+
+    cube.rotation.y += x * sensitivity;
+    cube.rotation.x += y * sensitivity;
+  }
+}
+
 function animate() {
   requestAnimationFrame(animate);
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
+
+  // Auto-rotation (can be overridden by gamepad)
+  cube.rotation.x += 0.005;
+  cube.rotation.y += 0.005;
+
+  handleGamepad();
+
   renderer.render(scene, camera);
 
   // Periodic save
@@ -62,7 +86,7 @@ function animate() {
 
 window.addEventListener('beforeunload', saveState);
 
-// Listen for reload signal via a simple polling or you can enhance with WS client
+// Listen for reload signal
 setInterval(() => {
   fetch('/last-change.json')
     .then(r => r.json())
