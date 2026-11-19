@@ -21,7 +21,6 @@ app.use(express.json({ limit: '10mb' }));
 
 let currentVersion = 1;
 
-// Load last version
 if (fs.existsSync(VERSION_FILE)) {
   try {
     const data = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
@@ -57,7 +56,9 @@ function backupCurrentFiles(version) {
 }
 
 function gitCommitAndTag(version, message) {
-  exec(`git add public/ && git commit -m "v${version}: ${message}" && git tag v${version} && git push && git push --tags`, () => {});
+  // Force tag and ignore all errors
+  const cmd = `git add public/ && git commit -m "v${version}: ${message}" || true && git tag -f v${version} && git push && git push --tags -f || true`;
+  exec(cmd, () => {});
 }
 
 wss.on('connection', (ws) => {
