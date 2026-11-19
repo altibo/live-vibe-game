@@ -11,7 +11,6 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const VERSIONS_DIR = path.join(__dirname, 'versions');
-const VERSION_FILE = path.join(__dirname, 'version.json');
 
 if (!fs.existsSync(VERSIONS_DIR)) fs.mkdirSync(VERSIONS_DIR, { recursive: true });
 
@@ -20,35 +19,8 @@ app.use(express.json({ limit: '10mb' }));
 
 let currentVersion = 1;
 
-function loadVersion() {
-  try {
-    if (fs.existsSync(VERSION_FILE)) {
-      const data = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
-      if (data && typeof data.version === 'number') return data.version;
-    }
-  } catch (e) {}
-  try {
-    const lastChange = path.join(PUBLIC_DIR, 'last-change.json');
-    if (fs.existsSync(lastChange)) {
-      const data = JSON.parse(fs.readFileSync(lastChange, 'utf8'));
-      if (data && typeof data.version === 'number') return data.version;
-    }
-  } catch (e) {}
-  return 1;
-}
-
-currentVersion = loadVersion();
-
-function saveVersion() {
-  try {
-    fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: currentVersion }, null, 2));
-  } catch (e) {}
-}
-
 function getNextVersion() {
-  currentVersion++;
-  saveVersion();
-  return currentVersion;
+  return ++currentVersion;
 }
 
 function backupCurrentFiles(version) {
@@ -60,6 +32,12 @@ function backupCurrentFiles(version) {
       if (fs.existsSync(src)) fs.copyFileSync(src, path.join(backupDir, f));
     });
   } catch (e) {}
+}
+
+function injectVersion(content, version) {
+  // Remove old version line if present, then prepend new one
+  const cleaned = content.replace(/^const GAME_VERSION\s*=\s*\d+;?\s*\n?/m, '');
+  return `const GAME_VERSION = ${version};\n` + cleaned;
 }
 
 wss.on('connection', (ws) => {
@@ -77,8 +55,12 @@ wss.on('connection', (ws) => {
 
         if (msg.files) {
           for (const [filename, content] of Object.entries(msg.files)) {
+            let finalContent = content;
+            if (filename === 'game.js') {
+              finalContent = injectVersion(content, version);
+            }
             const filePath = path.join(PUBLIC_DIR, filename);
-            fs.writeFileSync(filePath, content);
+            fs.writeFileSync(filePath, finalContent);
             console.log('Wrote', filename);
           }
         }
