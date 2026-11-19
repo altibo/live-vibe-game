@@ -1,6 +1,5 @@
-// Simple Three.js starter with gamepad
+// Green cube with gamepad
 let scene, camera, renderer, cube;
-let version = 1;
 
 function init() {
   scene = new THREE.Scene();
@@ -24,14 +23,14 @@ function init() {
     } catch (e) {}
   }
 
-  // Load current version from server
+  var versionEl = document.getElementById("version");
+  if (versionEl && typeof GAME_VERSION !== "undefined") {
+    versionEl.textContent = "v" + GAME_VERSION;
+  }
+
   fetch("/last-change.json")
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      version = data.version || 1;
-      var versionEl = document.getElementById("version");
-      if (versionEl) versionEl.textContent = "v" + version;
-
       var diffEl = document.getElementById("diff");
       if (diffEl && data.description) {
         diffEl.textContent = "v" + data.version + ": " + data.description;
@@ -39,17 +38,13 @@ function init() {
         setTimeout(function() { diffEl.style.display = "none"; }, 5000);
       }
     })
-    .catch(function() {
-      var versionEl = document.getElementById("version");
-      if (versionEl) versionEl.textContent = "v" + version;
-    });
+    .catch(function() {});
 
   animate();
 }
 
 function saveState() {
   var state = {
-    version: version,
     cubeRotation: { x: cube.rotation.x, y: cube.rotation.y, z: cube.rotation.z }
   };
   localStorage.setItem("gameState", JSON.stringify(state));
@@ -93,7 +88,7 @@ setInterval(function() {
   fetch("/last-change.json")
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.version > version) {
+      if (typeof GAME_VERSION !== "undefined" && data.version > GAME_VERSION) {
         saveState();
         location.reload();
       }
