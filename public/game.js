@@ -1,120 +1,90 @@
-// Green cube with gamepad
-let scene, camera, renderer, cube;
+const GAME_VERSION = 8;
+console.log("game.js two cubes");
+function setVersion() {
+  var el = document.getElementById("version");
+  if (el) el.textContent = "v" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : "?");
+}
+
+function connectReload() {
+  var proto = location.protocol === "https:" ? "wss:" : "ws:";
+  var ws = new WebSocket(proto + "//" + location.host);
+  ws.onmessage = function(e) {
+    try {
+      var msg = JSON.parse(e.data);
+      if (msg.type === "reload") location.reload();
+    } catch (err) {}
+  };
+  ws.onclose = function() { setTimeout(connectReload, 2000); };
+}
+
+function createCube(canvas, color, trailColor) {
+  var size = 40;
+  var speed = 3 + Math.random() * 2;
+  var angle = Math.random() * Math.PI * 2;
+  return {
+    x: Math.random() * (canvas.width - 100) + 50,
+    y: Math.random() * (canvas.height - 100) + 50,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    size: size,
+    color: color,
+    trailColor: trailColor,
+    trail: []
+  };
+}
 
 function init() {
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  renderer = new THREE.WebGLRenderer();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+  setVersion();
+  connectReload();
 
-  const geometry = new THREE.BoxGeometry();
-  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  cube = new THREE.Mesh(geometry, material);
-  scene.add(cube);
+  var canvas = document.createElement("canvas");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = "block";
+  document.body.appendChild(canvas);
+  var ctx = canvas.getContext("2d");
 
-  camera.position.z = 5;
+  var green = createCube(canvas, "#00ff00", "0, 255, 100");
+  var red = createCube(canvas, "#ff0000", "255, 50, 50");
+  var cubes = [green, red];
 
-  const saved = localStorage.getItem("gameState");
-  if (saved) {
-    try {
-      const state = JSON.parse(saved);
-      if (state.cubeRotation) cube.rotation.set(state.cubeRotation.x, state.cubeRotation.y, state.cubeRotation.z);
-    } catch (e) {}
-  }
+  function draw() {
+    ctx.fillStyle = "rgba(17, 17, 17, 0.15)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  var versionEl = document.getElementById("version");
-  if (versionEl && typeof GAME_VERSION !== "undefined") {
-    versionEl.textContent = "v" + GAME_VERSION;
-  }
+    for (var c = 0; c < cubes.length; c++) {
+      var cube = cubes[c];
 
-  fetch("/last-change.json")
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var diffEl = document.getElementById("diff");
-      if (diffEl && data.description) {
-        diffEl.textContent = "v" + data.version + ": " + data.description;
-        diffEl.style.display = "block";
-        setTimeout(function() { diffEl.style.display = "none"; }, 5000);
+      // Trail
+      for (var i = 0; i < cube.trail.length; i++) {
+        var t = cube.trail[i];
+        var alpha = i / cube.trail.length;
+        ctx.fillStyle = "rgba(" + cube.trailColor + ", " + (alpha * 0.5) + ")";
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, cube.size * 0.5 * alpha, 0, Math.PI * 2);
+        ctx.fill();
       }
-    })
-    .catch(function() {});
 
-  animate();
-}
+      // Move + bounce
+      cube.x += cube.vx;
+      cube.y += cube.vy;
+      if (cube.x < cube.size || cube.x > canvas.width - cube.size) cube.vx *= -1;
+      if (cube.y < cube.size || cube.y > canvas.height - cube.size) cube.vy *= -1;
+      cube.x = Math.max(cube.size, Math.min(canvas.width - cube.size, cube.x));
+      cube.y = Math.max(cube.size, Math.min(canvas.height - cube.size, cube.y));
 
-function saveState() {
-  var state = {
-    cubeRotation: { x: cube.rotation.x, y: cube.rotation.y, z: cube.rotation.z }
-  };
-  localStorage.setItem("gameState", JSON.stringify(state));
-}
+      cube.trail.push({ x: cube.x, y: cube.y });
+      if (cube.trail.length > 30) cube.trail.shift();
 
-function handleGamepad() {
-  var gamepads = navigator.getGamepads();
-  if (!gamepads) return;
+      // Draw cube
+      ctx.fillStyle = cube.color;
+      ctx.fillRect(cube.x - cube.size/2, cube.y - cube.size/2, cube.size, cube.size);
+    }
 
-  for (var i = 0; i < gamepads.length; i++) {
-    var gamepad = gamepads[i];
-    if (!gamepad) continue;
-
-    var deadzone = 0.15;
-    var sensitivity = 0.05;
-
-    var x = Math.abs(gamepad.axes[0]) > deadzone ? gamepad.axes[0] : 0;
-    var y = Math.abs(gamepad.axes[1]) > deadzone ? gamepad.axes[1] : 0;
-
-    cube.rotation.y += x * sensitivity;
-    cube.rotation.x += y * sensitivity;
+    requestAnimationFrame(draw);
   }
+
+  draw();
 }
-
-function handleGamepad() {
-  const gamepads = navigator.getGamepads();
-  if (!gamepads) return;
-
-  for (const gamepad of gamepads) {
-    if (!gamepad) continue;
-
-    // Left stick: axes[0] = left/right, axes[1] = up/down
-    const deadzone = 0.15;
-    const sensitivity = 0.05;
-
-    const x = Math.abs(gamepad.axes[0]) > deadzone ? gamepad.axes[0] : 0;
-    const y = Math.abs(gamepad.axes[1]) > deadzone ? gamepad.axes[1] : 0;
-
-    cube.rotation.y += x * sensitivity;
-    cube.rotation.x += y * sensitivity;
-  }
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  // Auto-rotation (can be overridden by gamepad)
-  cube.rotation.x += 0.005;
-  cube.rotation.y += 0.005;
-
-  handleGamepad();
-
-  renderer.render(scene, camera);
-
-  if (Math.random() < 0.01) saveState();
-}
-
-window.addEventListener("beforeunload", saveState);
-
-// Listen for reload signal
-setInterval(() => {
-  fetch('/last-change.json')
-    .then(r => r.json())
-    .then(data => {
-      if (data.version > version) {
-        saveState();
-        location.reload();
-      }
-    })
-    .catch(function() {});
-}, 1000);
 
 init();

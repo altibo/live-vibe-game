@@ -14,6 +14,16 @@ const VERSIONS_DIR = path.join(__dirname, 'versions');
 
 if (!fs.existsSync(VERSIONS_DIR)) fs.mkdirSync(VERSIONS_DIR, { recursive: true });
 
+// No cache for game files
+app.use((req, res, next) => {
+  if (req.path.endsWith('.js') || req.path.endsWith('.json') || req.path.endsWith('.html')) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+  next();
+});
+
 app.use(express.static(PUBLIC_DIR));
 app.use(express.json({ limit: '10mb' }));
 
@@ -58,7 +68,6 @@ wss.on('connection', (ws) => {
             let filePath;
 
             if (filename === 'server.js') {
-              // server.js goes to project root, not public/
               filePath = path.join(__dirname, 'server.js');
             } else {
               if (filename === 'game.js') {
@@ -68,7 +77,7 @@ wss.on('connection', (ws) => {
             }
 
             fs.writeFileSync(filePath, finalContent);
-            console.log('Wrote', filename, '->', filePath);
+            console.log('Wrote', filename);
           }
         }
 
@@ -79,9 +88,10 @@ wss.on('connection', (ws) => {
         };
         fs.writeFileSync(path.join(PUBLIC_DIR, 'last-change.json'), JSON.stringify(changeInfo, null, 2));
 
+        // Tell all connected browsers to reload
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'reload', version, description: changeInfo.description }));
+            client.send(JSON.stringify({ type: 'reload', version }));
           }
         });
 
@@ -98,5 +108,5 @@ server.listen(PORT, () => {
   console.log(`\n=== Live Vibe Game ===`);
   console.log(`Game:     http://localhost:${PORT}`);
   console.log(`WebSocket: ws://localhost:${PORT}`);
-  console.log(`\nCurrent version: v${currentVersion}\n`);
+  console.log(`Current version: v${currentVersion}\n`);
 });
