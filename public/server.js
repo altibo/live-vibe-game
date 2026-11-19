@@ -12,6 +12,7 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const VERSIONS_DIR = path.join(__dirname, 'versions');
+const VERSION_FILE = path.join(__dirname, 'version.json');
 
 if (!fs.existsSync(VERSIONS_DIR)) fs.mkdirSync(VERSIONS_DIR);
 
@@ -20,8 +21,27 @@ app.use(express.json({ limit: '10mb' }));
 
 let currentVersion = 1;
 
+// Load last version
+if (fs.existsSync(VERSION_FILE)) {
+  try {
+    const data = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
+    currentVersion = data.version || 1;
+  } catch (e) {}
+} else if (fs.existsSync(path.join(PUBLIC_DIR, 'last-change.json'))) {
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'last-change.json'), 'utf8'));
+    currentVersion = data.version || 1;
+  } catch (e) {}
+}
+
+function saveVersion() {
+  fs.writeFileSync(VERSION_FILE, JSON.stringify({ version: currentVersion }));
+}
+
 function getNextVersion() {
-  return ++currentVersion;
+  currentVersion++;
+  saveVersion();
+  return currentVersion;
 }
 
 function backupCurrentFiles(version) {
@@ -37,12 +57,7 @@ function backupCurrentFiles(version) {
 }
 
 function gitCommitAndTag(version, message) {
-  // Silent, non-blocking. Failures are ignored.
-  exec(`git add public/ && git commit -m "v${version}: ${message}" && git tag v${version} && git push && git push --tags`, (err) => {
-    if (err) {
-      // silent
-    }
-  });
+  exec(`git add public/ && git commit -m "v${version}: ${message}" && git tag v${version} && git push && git push --tags`, () => {});
 }
 
 wss.on('connection', (ws) => {
