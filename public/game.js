@@ -21,24 +21,28 @@ function init() {
     try {
       const state = JSON.parse(saved);
       if (state.cubeRotation) cube.rotation.set(state.cubeRotation.x, state.cubeRotation.y, state.cubeRotation.z);
-      if (state.version) version = state.version;
     } catch (e) {}
   }
 
-  var versionEl = document.getElementById("version");
-  if (versionEl) versionEl.textContent = "v" + version;
-
+  // Load current version from server
   fetch("/last-change.json")
     .then(function(r) { return r.json(); })
     .then(function(data) {
+      version = data.version || 1;
+      var versionEl = document.getElementById("version");
+      if (versionEl) versionEl.textContent = "v" + version;
+
       var diffEl = document.getElementById("diff");
-      if (diffEl) {
+      if (diffEl && data.description) {
         diffEl.textContent = "v" + data.version + ": " + data.description;
         diffEl.style.display = "block";
         setTimeout(function() { diffEl.style.display = "none"; }, 5000);
       }
     })
-    .catch(function() {});
+    .catch(function() {
+      var versionEl = document.getElementById("version");
+      if (versionEl) versionEl.textContent = "v" + version;
+    });
 
   animate();
 }
