@@ -17,7 +17,7 @@ function init() {
   camera.position.z = 5;
 
   // Load last state if any
-  const saved = localStorage.getItem('gameState');
+  const saved = localStorage.getItem("gameState");
   if (saved) {
     try {
       const state = JSON.parse(saved);
@@ -26,16 +26,16 @@ function init() {
     } catch (e) {}
   }
 
-  document.getElementById('version').textContent = 'v' + version;
+  document.getElementById("version").textContent = "v" + version;
 
   // Show live diff if available
-  fetch('/last-change.json')
+  fetch("/last-change.json")
     .then(r => r.json())
     .then(data => {
-      const diffEl = document.getElementById('diff');
-      diffEl.textContent = `v${data.version}: ${data.description}`;
-      diffEl.style.display = 'block';
-      setTimeout(() => diffEl.style.display = 'none', 5000);
+      const diffEl = document.getElementById("diff");
+      diffEl.textContent = \`v\${data.version}: \${data.description}\`;
+      diffEl.style.display = "block";
+      setTimeout(() => diffEl.style.display = "none", 5000);
     })
     .catch(() => {});
 
@@ -47,24 +47,44 @@ function saveState() {
     version,
     cubeRotation: { x: cube.rotation.x, y: cube.rotation.y, z: cube.rotation.z }
   };
-  localStorage.setItem('gameState', JSON.stringify(state));
+  localStorage.setItem("gameState", JSON.stringify(state));
+}
+
+function handleGamepad() {
+  const gamepads = navigator.getGamepads();
+  if (!gamepads) return;
+
+  for (const gamepad of gamepads) {
+    if (!gamepad) continue;
+
+    const deadzone = 0.15;
+    const sensitivity = 0.05;
+
+    const x = Math.abs(gamepad.axes[0]) > deadzone ? gamepad.axes[0] : 0;
+    const y = Math.abs(gamepad.axes[1]) > deadzone ? gamepad.axes[1] : 0;
+
+    cube.rotation.y += x * sensitivity;
+    cube.rotation.x += y * sensitivity;
+  }
 }
 
 function animate() {
   requestAnimationFrame(animate);
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
+
+  cube.rotation.x += 0.005;
+  cube.rotation.y += 0.005;
+
+  handleGamepad();
+
   renderer.render(scene, camera);
 
-  // Periodic save
   if (Math.random() < 0.01) saveState();
 }
 
-window.addEventListener('beforeunload', saveState);
+window.addEventListener("beforeunload", saveState);
 
-// Listen for reload signal via a simple polling or you can enhance with WS client
 setInterval(() => {
-  fetch('/last-change.json')
+  fetch("/last-change.json")
     .then(r => r.json())
     .then(data => {
       if (data.version > version) {
